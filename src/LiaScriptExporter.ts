@@ -1,22 +1,44 @@
+import { MultipleChoice, QuestionPage } from "./Types";
+
 export class LiaScriptExporter {
   private pages: string[] = [];
+  private pageLevel = 0;
+  private readonly adaptTitles;
+
+  constructor(adaptTitles?: boolean) {
+    this.adaptTitles = adaptTitles ?? true;
+  }
 
   public addPage(pageTitles: string[], md: string) {
-    const lines = md.split(/\r?\n/);
     const result: string[] = [];
 
     pageTitles.forEach((pageTitle, index) => {
       result.push(`${"#".repeat(index + 1)} ${pageTitle}\n\n`);
     });
+
     // We added an extra line, remove it
-    let lastLine = result.pop();
+    const lastLine = result.pop();
     if (lastLine) {
       result.push(lastLine.slice(0, -1));
     }
 
+    this.pageLevel = this.adaptTitles ? pageTitles.length : 0;
+    this.convertMarkdownPage(md, result);
+  }
+
+  public addMultipleChoice(question: QuestionPage, questions: MultipleChoice) {
+    const result: string[] = [];
+    if (question.separatePage) {
+    } else {
+      this.convertMarkdownPage(question.page, result);
+    }
+  }
+
+  private convertMarkdownPage(md: string, result: string[] = []) {
     let currentLevel = 0;
     let previousLevel = 0;
 
+    const lines = md.split(/\r?\n/);
     for (const line of lines) {
       const match = line.match(/^(\#{1,6})\s(.*)$/);
       if (match) {
@@ -40,8 +62,8 @@ export class LiaScriptExporter {
           result.push(`</section>\n\n`.repeat(previousLevel - level + 1));
         }
 
-        // Convert the title: Add one #
-        result.push(`${"#".repeat(level + pageTitles.length)} ${title}\n`);
+        // Convert the title: Add extra #
+        result.push(`${"#".repeat(level + this.pageLevel)} ${title}\n`);
         previousLevel = level;
       } else {
         result.push(`${line}\n`);
@@ -58,13 +80,13 @@ export class LiaScriptExporter {
     }
 
     // We added an extra line at the end of the file, remove it
-    lastLine = result.pop();
+    const lastLine = result.pop();
     if (lastLine) {
       result.push(lastLine.slice(0, -1));
     }
-
     this.pages.push(result.join(""));
   }
+
   public buildPage() {
     return this.pages.join("\n");
   }
